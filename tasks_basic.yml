@@ -1,62 +1,57 @@
 ---
-- name: playbook01 medo tasks
+- name: Simple IOS Playbook
   hosts: myrouters
-  gather_facts: yes
+  gather_facts: no
+
   vars:
-    U: admin1
-    IP: "{{IP2}}"
-    B: "MCIT"
-    H: "{{inventory_hostname}}"
+    username: admin1
+    hostname: "{{ inventory_hostname }}"
+    ip_addr: "{{ IP2 }}"
+
   tasks:
-    - name: T1 task01 doooooooo print facts
-      debug:
-        var: ansible_facts
 
-
-    - name: T2 create a new user
+    - name: Create User
       cisco.ios.ios_user:
-        name: "{{U}}"
+        name: "{{ username }}"
         nopassword: true
-        sshkey: "{{ lookup('file', '~/.ssh/lab_rsa.pub') }}"
-        state: present  
         privilege: 15
-      notify: "T3 banner"
+        state: present
 
-
-
-
-
-    - name: T4 configure interface settings
-      cisco.ios.ios_config:
-        lines:
-        - description test interface
-        - ip address {{IP}} 255.255.255.0
-        parents: interface GigabitEthernet2
-      notify: "T5 up"
-
-
-    - name: T6 Apply the provided configuration
-      cisco.ios.ios_hostname:
-        config:
-          hostname: "{{H}}"
-        state: merged
-
-
-
-  handlers:
-    - name: "T3 banner"
+    - name: Configure Login Banner
       cisco.ios.ios_banner:
         banner: login
         text: |
-          this is {{inventory_hostname}} login banner
-          that contains a multiline
-          string
+          Welcome to {{ hostname }}
+          Authorized Users Only
         state: present
 
-    - name: "T5 up"
-      cisco.ios.ios_interfaces:
+    - name: Configure Interface IP
+      cisco.ios.ios_config:
+        parents: interface GigabitEthernet2
+        lines:
+          - description Connected_by_Ansible
+          - ip address {{ ip_addr }} 255.255.255.0
+          - no shutdown
+
+    - name: Create VLAN 10
+      cisco.ios.ios_vlans:
         config:
-        - name: GigabitEthernet2
-          enabled: true
+          - vlan_id: 10
+            name: USERS
+        state: merged
+
+    - name: Configure Access Port
+      cisco.ios.ios_config:
+        parents: interface GigabitEthernet1
+        lines:
+          - switchport mode access
+          - switchport access vlan 10
+
+    - name: Configure Hostname
+      cisco.ios.ios_hostname:
+        config:
+          hostname: "{{ hostname }}"
+        state: merged
+
 
 
